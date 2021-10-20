@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    app : mysql-dep
+spec:
+  capacity:
+    storage: 10Gi 
+  accessModes:
+    - ReadWriteMany  #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
+  nfs:
+    path: "/storage/db/mysql/"  #path nfs share
+    server: 192.168.90.80   #nfs server IP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc 
+  labels:
+    app:  mysql-dep
+spec:
+  accessModes:
+    - ReadWriteMany #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
+  resources:
+    requests:
+      storage: 3Gi 
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: default
+type: Opaque
+data:
+  password: bW9laW5tb2VpbjEyMwo=  # password must be base46 ,password ==> moeinmoein123
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  mysql-dep
+  namespace: default
+  labels:
+    app:  mysql-dep
+spec:
+  selector:
+    matchLabels:
+      app: mysql-dep
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app:  mysql-dep
+    spec:
+      nodeName: k8s-node-1  #Assigned to a specific node
+      containers:
+      - name:  mysql
+        image:  mysql:5.6
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MYSQL_DATABASES
+          value: django
+        - name: MYSQL_ROOT_PASSWORD 
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: password
+        - name: MYSQL_ROOT_HOST
+          value: '%'
+        livenessProbe:
+          tcpSocket:
+            port: 3306
+        ports:
+        - containerPort:  3306
+          name:  mysql
+        volumeMounts:
+        - name: mysql-db
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-db
+        PersistentVolumeClaim:
+          claimName: mysql-pvc 
+      #restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: default
+spec:
+  selector:
+    app: mysql-dep
+  type: ClusterIP
+  ports:
+  - name: mysql-dep
+    protocol: TCP
+    port: 3306
