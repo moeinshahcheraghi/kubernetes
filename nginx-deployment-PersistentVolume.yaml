@@ -1,89 +1,105 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: nginx-log
+  name: mysql-pv
   labels:
-    app : my-dep
+    app : mysql-dep
 spec:
   capacity:
-    storage: 10Gi 
+    storage: 10Gi
   accessModes:
     - ReadWriteMany  #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
   nfs:
-    path: "/storage/nginx/log"  #path nfs share
+    path: "/storage/db/mysql/"  #path nfs share
     server: 192.168.90.80   #nfs server IP
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nginx-dev 
+  name: mysql-pvc
   labels:
-    app: my-dep
+    app:  mysql-dep
 spec:
   accessModes:
     - ReadWriteMany #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
   resources:
     requests:
-      storage: 3Gi 
+      storage: 3Gi
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: default
+type: Opaque
+data:
+  password: bW9laW5tb2VpbjEyMwo=  # password must be base46 ,password ==> moeinmoein123
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: my-dep
-  name: my-dep
-  namespace: default
+  name: mysql
 spec:
-  replicas: 5
   selector:
     matchLabels:
-      app: my-dep
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+      app: mysql
+  replicas: 1
   template:
     metadata:
       labels:
-        app: my-dep
+        app:  mysql
     spec:
       containers:
-      - name:  my-dep
-        image:  nginx:latest
-        imagePullPolicy: IfNotPresent
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-          limits:
-            cpu: 100m
-            memory: 100Mi
+      - image: mysql:latest
+        name: mysql
+        env:
+        - name: MYSQL_DATABASES
+          value: django
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: password
+        - name: MYSQL_ROOT_HOST
+          value: '%'
         ports:
-         - containerPort: 80
-           protocol: TCP
+        - containerPort: 3306
+          name: mysql
         volumeMounts:
-        - mountPath: /var/log/nginx
-          name: site-log 
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+          readOnly: false
       volumes:
-      - name: site-log
+      - name: mysql-persistent-storage
         persistentVolumeClaim:
-          claimName: nginx-dev
-
+         claimName: mysql-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-service
+  name: mysql-servic
   namespace: default
 spec:
   selector:
-    app: my-dep
+    app: mysql
   type: ClusterIP
   ports:
-  - name: my-dep
+  - name: mysql-dep
     protocol: TCP
-    port: 80
-    targetPort: 80 
-  externalIPs:
-   - 192.168.90.96 #worker node ip
+    port: 3306
+
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+~                                                                                                                                                                                                     
