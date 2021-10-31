@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  labels:
+    app : postgres-dep
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany  #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
+  nfs:
+    path: "/storage/db/postgres/"  #path nfs share
+    server: 192.168.90.80   #nfs server IP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  labels:
+    app:  postgres-dep
+spec:
+  accessModes:
+    - ReadWriteMany #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
+  resources:
+    requests:
+      storage: 3Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: default
+type: Opaque
+data:
+  POSTGRES_PASSWORD: bW9laW5tb2VpbjEyMwo=  # password must be base46 ,password ==> moeinmoein123
+stringData:
+  POSTGRES_USER: root
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configuration
+  labels:
+    app: postgres-dep
+data:
+  POSTGRES_DB: moeindb
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-dep
+  template:
+    metadata:
+      labels:
+        app: postgres-dep
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12.4-alpine
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - secretRef:
+              name: postgres-secret
+          - configMapRef:
+              name: postgres-configuration
+        volumeMounts:
+        - name: postgres-database-storage
+          mountPath: /var/lib/pgsql/data
+      volumes:
+      - name: postgres-database-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-servic
+  namespace: default
+spec:
+  selector:
+    app: postgres-dep
+  type: ClusterIP
+  ports:
+  - name: postgres-dep
+    protocol: TCP
+    port: 5432
