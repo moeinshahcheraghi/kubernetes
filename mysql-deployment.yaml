@@ -6,7 +6,7 @@ metadata:
     app : mysql-dep
 spec:
   capacity:
-    storage: 10Gi
+    storage: 10Gi 
   accessModes:
     - ReadWriteMany  #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
   nfs:
@@ -16,7 +16,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mysql-pvc
+  name: mysql-pvc 
   labels:
     app:  mysql-dep
 spec:
@@ -24,7 +24,7 @@ spec:
     - ReadWriteMany #ReadWriteOnce #ReadOnlyMany #ReadWriteMany
   resources:
     requests:
-      storage: 3Gi
+      storage: 3Gi 
 ---
 apiVersion: v1
 kind: Secret
@@ -38,49 +38,60 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql
+  name:  mysql-dep
+  namespace: default
+  labels:
+    app:  mysql-dep
 spec:
   selector:
     matchLabels:
-      app: mysql
+      app: mysql-dep
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
-        app:  mysql
+        app:  mysql-dep
     spec:
+      nodeName: k8s-node-1  #Assigned to a specific node
       containers:
-      - image: mysql:latest
-        name: mysql
+      - name:  mysql
+        image:  mysql:5.6
+        imagePullPolicy: IfNotPresent
         env:
         - name: MYSQL_DATABASES
           value: django
-        - name: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_ROOT_PASSWORD 
           valueFrom:
             secretKeyRef:
               name: mysql-secret
               key: password
         - name: MYSQL_ROOT_HOST
           value: '%'
+        livenessProbe:
+          tcpSocket:
+            port: 3306
         ports:
-        - containerPort: 3306
-          name: mysql
+        - containerPort:  3306
+          name:  mysql
         volumeMounts:
-        - name: mysql-persistent-storage
+        - name: mysql-db
           mountPath: /var/lib/mysql
       volumes:
-      - name: mysql-persistent-storage
-        persistentVolumeClaim:
-         claimName: mysql-pvc
+      - name: mysql-db
+        PersistentVolumeClaim:
+          claimName: mysql-pvc 
+      #restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql-servic
+  name: mysql-service
   namespace: default
 spec:
   selector:
-    app: mysql
+    app: mysql-dep
   type: ClusterIP
   ports:
   - name: mysql-dep
